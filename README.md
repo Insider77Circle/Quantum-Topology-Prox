@@ -215,6 +215,7 @@ make docs
 - [📖 Architecture Overview](docs/architecture.md)
 - [🔧 API Reference](docs/api.md)
 - [🛡️ Security Analysis](docs/security.md)
+- [🔌 Stem Integration Guide](docs/stem-integration.md) - **Novel 20-line integration with torproject/stem**
 - [⚡ Performance Guide](docs/performance.md)
 - [🔧 Deployment Guide](docs/deployment.md)
 

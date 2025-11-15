@@ -119,6 +119,71 @@ for event in controller.stream_events():
         print(f"Circuit {event.id}: {event.status}")
 ```
 
+#### `QuantumStemInterceptor`
+
+**Novel integration with torproject/stem for real-time circuit timing randomization.**
+
+This is the core 20-line integration that intercepts Stem's STREAM_EVENT to inject quantum-derived topological timing delays, making circuit timing analysis NP-hard.
+
+```python
+from qtop import QuantumCache, TopologicalTimingEngine, QuantumStemInterceptor
+import asyncio
+
+# Initialize quantum components
+quantum_cache = QuantumCache(size=1_000_000)
+await quantum_cache.preload_seeds_async("cisco_qapi", count=1_000_000)
+
+timing_engine = TopologicalTimingEngine(
+    winding_quantum=6.28318,  # 2π
+    min_delay=0.1,  # milliseconds
+    max_delay=10.0  # milliseconds
+)
+
+# Create interceptor - connects to Tor via Stem
+interceptor = QuantumStemInterceptor(
+    quantum_cache=quantum_cache,
+    timing_engine=timing_engine,
+    tor_port=9051,
+    password=None  # Set if Tor control port is password-protected
+)
+
+# Start interception - hooks into Stem's STREAM_EVENT system
+controller = interceptor.start_interception()
+
+# Now all Tor stream events have quantum timing applied!
+# This makes correlation attacks computationally intractable
+
+# Check if active
+if interceptor.is_active():
+    print("Quantum timing randomization active")
+
+# Stop when done
+interceptor.stop_interception()
+```
+
+**Key Methods:**
+
+- `connect()`: Connect to Tor control port via Stem
+- `start_interception()`: Begin intercepting STREAM_EVENT for quantum timing injection
+- `stop_interception()`: Stop intercepting and disconnect
+- `is_active()`: Check if interception is currently active
+
+**How It Works:**
+
+1. Connects to Tor's control port using Stem's Controller API
+2. Registers an event listener for `STREAM_EVENT` events
+3. For each NEW stream event, computes a quantum-topological delay
+4. Applies the delay using `time.sleep()`, randomizing circuit timing
+5. This breaks ML correlation attacks by making timing patterns NP-hard to analyze
+
+**Integration Point:**
+
+The magic happens in the `handle_stream_event` callback (lines 82-104), which is called by Stem for every stream event. This ~20 lines of code is what makes circuit timing analysis computationally intractable.
+
+**See Also:**
+- [Stem Integration Guide](stem-integration.md) - Detailed guide on using Stem integration
+- [Examples](../examples/stem_integration_example.py) - Complete working example
+
 ### Utility Functions
 
 #### `compute_packet_hash()`
