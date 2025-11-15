@@ -11,6 +11,7 @@ from .quantum import QuantumCache
 from .timing import TopologicalTimingEngine
 from .tor import TorCircuitController
 from .monitoring import PrometheusMetrics, HealthChecker
+from .stem_integration import QuantumStemInterceptor
 
 __all__ = [
     "QuantumTopologyProxy",
@@ -19,4 +20,5 @@ __all__ = [
     "TorCircuitController",
     "PrometheusMetrics",
     "HealthChecker",
+    "QuantumStemInterceptor",
 ]
