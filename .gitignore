@@ -1,0 +1,196 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+*.dylib
+*.dll
+
+# Rust build artifacts
+target/
+Cargo.lock
+*.rs.bk
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Quantum cache and logs
+quantum_cache/
+*.qcache
+logs/
+*.log
+
+# Build artifacts
+*.o
+*.a
+*.out
+qtop.so
+libquantum_seeds.so
+
+# Configuration files with secrets
+config.yaml
+secrets/
+*.key
+*.pem
+*.crt
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# Rust specific
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# Python specific
+*.pyc
+__pycache__/
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.git
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# C/C++ specific
+*.o
+*.obj
+*.exe
+*.out
+*.app
+*.i
+*.s
+*.ko
+*.elf
+*.dSYM/
+
+# Quantum-specific ignores
+quantum_seeds.cache
+cisco_qapi_tokens.json
+.qtop_history
+circuit_states.bin
+winding_logs/
+
+# OS specific
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*~
+*.orig
+
+# Core dumps
+core
+core.*
+vgcore.*
+
+# Valgrind
+callgrind.*
+massif.*
+cachegrind.*
+
+# Performance profiling
+perf.data
+perf.data.old
+flamegraph.svg
+
+# Documentation build
+docs/_build/
+docs/.doctrees/

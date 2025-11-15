@@ -1,0 +1,397 @@
+name: 🔒 Quantum Topology Proxy CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  release:
+    types: [ published ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Code quality checks
+  quality:
+    name: 🎯 Code Quality
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [3.8, 3.9, 3.10, 3.11]
+        rust-version: [stable, beta]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: 🦀 Set up Rust ${{ matrix.rust-version }}
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust-version }}
+        components: rustfmt, clippy
+        
+    - name: 🗃️ Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cargo/registry
+          ~/.cargo/git
+          target/
+        key: ${{ runner.os }}-${{ matrix.python-version }}-${{ matrix.rust-version }}-${{ hashFiles('**/requirements.txt', '**/Cargo.lock') }}
+        
+    - name: 📦 Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc make tor proxychains-ng
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+        
+    - name: 🔍 Format check
+      run: |
+        make format-python
+        make format-rust
+        git diff --exit-code
+        
+    - name: 🧹 Lint code
+      run: |
+        make lint-python
+        make lint-rust
+        
+    - name: 🔒 Security audit
+      run: |
+        make audit-python
+        make audit-rust
+        
+    - name: 📊 Type checking
+      run: |
+        mypy src/qtop/
+        cd src/verifier && cargo check --all-features
+
+  # Testing
+  test:
+    name: 🧪 Testing
+    runs-on: ubuntu-latest
+    needs: quality
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+        
+    - name: 🦀 Set up Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: 🗃️ Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/.cargo/registry
+          ~/.cargo/git
+          target/
+        key: ${{ runner.os }}-test-${{ hashFiles('**/requirements.txt', '**/Cargo.lock') }}
+        
+    - name: 📦 Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc make tor proxychains-ng
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: 🔨 Build project
+      run: make build
+      
+    - name: 🧪 Run Python tests
+      run: |
+        make test-python
+        coverage xml
+        
+    - name: 🧪 Run Rust tests
+      run: make test-rust
+      
+    - name: 🔗 Run integration tests
+      run: make test-integration
+      
+    - name: 📤 Upload coverage reports
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  # Performance benchmarks
+  benchmark:
+    name: ⚡ Performance Benchmarks
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+        
+    - name: 🦀 Set up Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: 📦 Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc make tor proxychains-ng
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: 🔨 Build project
+      run: make build
+      
+    - name: ⚡ Run benchmarks
+      run: |
+        make benchmark-python
+        make benchmark-rust
+        
+    - name: 📊 Upload benchmark results
+      uses: actions/upload-artifact@v3
+      with:
+        name: benchmark-results
+        path: |
+          .benchmarks/
+          target/criterion/
+
+  # Security scanning
+  security:
+    name: 🔐 Security Scan
+    runs-on: ubuntu-latest
+    needs: quality
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-language: 3.11
+        
+    - name: 🦀 Set up Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install safety bandit
+        cargo install cargo-audit
+        
+    - name: 🔒 Python security scan
+      run: |
+        safety check --json > safety-report.json || true
+        bandit -r src/qtop/ -f json -o bandit-report.json || true
+        
+    - name: 🔒 Rust security scan
+      run: |
+        cd src/verifier && cargo audit --json > ../cargo-audit-report.json || true
+        
+    - name: 📤 Upload security reports
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-reports
+        path: |
+          safety-report.json
+          bandit-report.json
+          cargo-audit-report.json
+
+  # Build and package
+  build:
+    name: 📦 Build & Package
+    runs-on: ubuntu-latest
+    needs: [test, benchmark]
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+        
+    - name: 🦀 Set up Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      
+    - name: 📦 Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y build-essential gcc make tor proxychains-ng
+        python -m pip install --upgrade pip setuptools wheel
+        pip install -r requirements.txt
+        
+    - name: 🔨 Build release artifacts
+      run: make release
+      
+    - name: 📤 Upload Python package
+      uses: actions/upload-artifact@v3
+      with:
+        name: python-package
+        path: dist/*.whl
+        
+    - name: 📤 Upload Rust binary
+      uses: actions/upload-artifact@v3
+      with:
+        name: rust-binary
+        path: |
+          src/verifier/target/release/qtop-verifier
+          src/verifier/target/release/libqtop_verifier.so
+
+  # Docker build
+  docker:
+    name: 🐳 Docker Build
+    runs-on: ubuntu-latest
+    needs: build
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐳 Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+      
+    - name: 🐳 Build Docker image
+      run: make docker-build
+      
+    - name: 🧪 Test Docker image
+      run: |
+        docker run --rm quantum-topology-proxy:latest qtop-verifier --version
+        docker run --rm quantum-topology-proxy:latest qtop --version
+
+  # Release to PyPI
+  release-pypi:
+    name: 🚀 Release to PyPI
+    runs-on: ubuntu-latest
+    needs: [build, docker]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+        
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip setuptools wheel twine
+        
+    - name: 📥 Download Python package
+      uses: actions/download-artifact@v3
+      with:
+        name: python-package
+        path: dist/
+        
+    - name: 🚀 Publish to PyPI
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+      run: |
+        twine check dist/*
+        twine upload dist/*
+
+  # Release to GitHub
+  release-github:
+    name: 🚀 Release to GitHub
+    runs-on: ubuntu-latest
+    needs: [build, docker]
+    if: github.event_name == 'release' && github.event.action == 'published'
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 📥 Download artifacts
+      uses: actions/download-artifact@v3
+      with:
+        path: artifacts/
+        
+    - name: 🚀 Upload release assets
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          artifacts/python-package/*
+          artifacts/rust-binary/*
+          artifacts/benchmark-results/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Documentation deployment
+  docs:
+    name: 📚 Documentation
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      
+    - name: 🐍 Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: 3.11
+        
+    - name: 📦 Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install sphinx sphinx-rtd-theme
+        
+    - name: 📚 Build documentation
+      run: make docs-python
+        
+    - name: 🚀 Deploy to GitHub Pages
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./docs/_build
+
+  # Notification
+  notify:
+    name: 📢 Notifications
+    runs-on: ubuntu-latest
+    needs: [release-pypi, release-github, docs]
+    if: always()
+    
+    steps:
+    - name: 📊 Build status summary
+      run: |
+        echo "Build Status Summary:"
+        echo "Quality: ${{ needs.quality.result }}"
+        echo "Test: ${{ needs.test.result }}"
+        echo "Benchmark: ${{ needs.benchmark.result }}"
+        echo "Security: ${{ needs.security.result }}"
+        echo "Build: ${{ needs.build.result }}"
+        echo "Docker: ${{ needs.docker.result }}"
+        echo "Release PyPI: ${{ needs.release-pypi.result }}"
+        echo "Release GitHub: ${{ needs.release-github.result }}"
+        echo "Docs: ${{ needs.docs.result }}"
+
+# Workflow status badges
+# ![CI/CD](https://github.com/Insider77Circle/quantum-topology-proxy/workflows/%F0%9F%94%92%20Quantum%20Topology%20Proxy%20CI%2FCD/badge.svg)
+# ![Quality](https://github.com/Insider77Circle/quantum-topology-proxy/workflows/%F0%9F%8E%AF%20Code%20Quality/badge.svg)
+# ![Security](https://github.com/Insider77Circle/quantum-topology-proxy/workflows/%F0%9F%94%90%20Security%20Scan/badge.svg)
